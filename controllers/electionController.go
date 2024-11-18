@@ -3,48 +3,33 @@ package controllers
 import (
 	"net/http"
 
-	"github.com/joshua468/voting-app/models"
-
 	"github.com/gin-gonic/gin"
+	"github.com/joshua468/voting-app/database"
+	"github.com/joshua468/voting-app/models"
+	"github.com/joshua468/voting-app/utils"
 )
 
-// CreateElection - handles creation of elections
 func CreateElection(c *gin.Context) {
 	var election models.Election
 	if err := c.ShouldBindJSON(&election); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		utils.RespondJSON(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// Create election
-	if err := models.CreateElection(&election); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create election"})
+	if err := database.DB.Create(&election).Error; err != nil {
+		utils.RespondJSON(c, http.StatusInternalServerError, "Error creating election")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Election created successfully"})
+	utils.RespondJSON(c, http.StatusCreated, "Election created successfully")
 }
 
-// GetElections - retrieves all elections
 func GetElections(c *gin.Context) {
-	elections, err := models.GetAllElections()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve elections"})
+	var elections []models.Election
+	if err := database.DB.Preload("Aspirants").Find(&elections).Error; err != nil {
+		utils.RespondJSON(c, http.StatusInternalServerError, "Error retrieving elections")
 		return
 	}
 
 	c.JSON(http.StatusOK, elections)
-}
-
-// GetElectionByID - retrieves a single election by ID
-func GetElectionByID(c *gin.Context) {
-	id := c.Param("id")
-
-	election, err := models.GetElectionByID(id)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Election not found"})
-		return
-	}
-
-	c.JSON(http.StatusOK, election)
 }
