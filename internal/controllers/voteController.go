@@ -16,6 +16,20 @@ func Vote(c *gin.Context) {
 		return
 	}
 
+	// Check if the election exists and is active
+	var election models.Election
+	if err := database.DB.Where("id = ? AND start_date <= NOW() AND end_date >= NOW()", vote.ElectionID).First(&election).Error; err != nil {
+		utils.RespondJSON(c, http.StatusBadRequest, "Invalid or expired election")
+		return
+	}
+
+	// Check if the aspirant exists in the election
+	var aspirant models.Aspirant
+	if err := database.DB.Where("id = ? AND election_id = ?", vote.AspirantID, vote.ElectionID).First(&aspirant).Error; err != nil {
+		utils.RespondJSON(c, http.StatusBadRequest, "Invalid aspirant for this election")
+		return
+	}
+
 	// Check if user already voted in the election
 	var existingVote models.Vote
 	if err := database.DB.Where("user_id = ? AND election_id = ?", vote.UserID, vote.ElectionID).First(&existingVote).Error; err == nil {
@@ -23,6 +37,7 @@ func Vote(c *gin.Context) {
 		return
 	}
 
+	// Create the new vote
 	if err := database.DB.Create(&vote).Error; err != nil {
 		utils.RespondJSON(c, http.StatusInternalServerError, "Error submitting vote")
 		return
